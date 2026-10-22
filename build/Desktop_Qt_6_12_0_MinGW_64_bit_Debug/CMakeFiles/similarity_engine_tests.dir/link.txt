@@ -1,0 +1,3 @@
+C:\Users\dmitr\OneDrive\Desktop\Tools\CMake_64\bin\cmake.exe -E rm -f CMakeFiles\similarity_engine_tests.dir/objects.a
+C:\Users\dmitr\OneDrive\Desktop\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\similarity_engine_tests.dir/objects.a @CMakeFiles\similarity_engine_tests.dir\objects1.rsp
+C:\Users\dmitr\OneDrive\Desktop\Tools\mingw1310_64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\similarity_engine_tests.dir/objects.a -Wl,--no-whole-archive -o similarity_engine_tests.exe -Wl,--out-implib,libsimilarity_engine_tests.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\similarity_engine_tests.dir\linkLibs.rsp

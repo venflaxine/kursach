@@ -1,0 +1,3 @@
+C:\Users\dmitr\OneDrive\Desktop\Tools\CMake_64\bin\cmake.exe -E rm -f CMakeFiles\local_antiplagiarism.dir/objects.a
+C:\Users\dmitr\OneDrive\Desktop\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\local_antiplagiarism.dir/objects.a @CMakeFiles\local_antiplagiarism.dir\objects1.rsp
+C:\Users\dmitr\OneDrive\Desktop\Tools\mingw1310_64\bin\g++.exe -g -mwindows -Wl,--whole-archive CMakeFiles\local_antiplagiarism.dir/objects.a -Wl,--no-whole-archive -o local_antiplagiarism.exe -Wl,--out-implib,liblocal_antiplagiarism.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\local_antiplagiarism.dir\linkLibs.rsp

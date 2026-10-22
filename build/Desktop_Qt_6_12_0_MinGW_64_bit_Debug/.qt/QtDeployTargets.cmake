@@ -1,0 +1,7 @@
+set(__QT_DEPLOY_TARGETS "local_antiplagiarism;similarity_engine_tests")
+set(__QT_DEPLOY_TARGET_local_antiplagiarism_FILE C:/Users/dmitr/OneDrive/Desktop/LocalTextSimilarity/build/Desktop_Qt_6_12_0_MinGW_64_bit_Debug/local_antiplagiarism.exe)
+set(__QT_DEPLOY_TARGET_local_antiplagiarism_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_local_antiplagiarism_RUNTIME_DLLS C:/Users/dmitr/OneDrive/Desktop/6.12.0/mingw_64/bin/Qt6Widgets.dll;C:/Users/dmitr/OneDrive/Desktop/6.12.0/mingw_64/bin/Qt6Gui.dll;C:/Users/dmitr/OneDrive/Desktop/6.12.0/mingw_64/bin/Qt6Core.dll)
+set(__QT_DEPLOY_TARGET_similarity_engine_tests_FILE C:/Users/dmitr/OneDrive/Desktop/LocalTextSimilarity/build/Desktop_Qt_6_12_0_MinGW_64_bit_Debug/similarity_engine_tests.exe)
+set(__QT_DEPLOY_TARGET_similarity_engine_tests_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_similarity_engine_tests_RUNTIME_DLLS C:/Users/dmitr/OneDrive/Desktop/6.12.0/mingw_64/bin/Qt6Test.dll;C:/Users/dmitr/OneDrive/Desktop/6.12.0/mingw_64/bin/Qt6Core.dll)
