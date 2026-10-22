@@ -1,3 +1,4 @@
+
 #include "TextAnalyzer.h"
 
 #include <QChar>
@@ -9,10 +10,12 @@
 namespace TextSimilarity {
 namespace {
 
+// Разделитель между словами в N-грамме
 const QChar WordSeparator(0x001F);
 
 }
 
+// Проверка, является ли символ знаком препинания
 bool TextAnalyzer::isUnicodePunctuation(char32_t codePoint)
 {
     switch (QChar::category(codePoint)) {
@@ -29,9 +32,12 @@ bool TextAnalyzer::isUnicodePunctuation(char32_t codePoint)
     }
 }
 
+// Разбивает текст на слова или отдельные символы
 QVector<QString> TextAnalyzer::tokenize(const QString &text, const Options &options)
 {
     QString normalized = text;
+
+    // При необходимости приводим текст к одному регистру
     if (options.ignoreCase)
         normalized = normalized.toCaseFolded();
 
@@ -39,12 +45,14 @@ QVector<QString> TextAnalyzer::tokenize(const QString &text, const Options &opti
         QVector<QString> tokens;
 
         if (options.ignorePunctuation) {
+            // Выделяем слова, оставляя буквы, цифры и подчёркивания
             static const QRegularExpression wordPattern(
                 QStringLiteral("[\\p{L}\\p{N}_]+"));
             auto matches = wordPattern.globalMatch(normalized);
             while (matches.hasNext())
                 tokens.append(matches.next().captured(0));
         } else {
+            // Разделяем текст по пробелам
             const QStringList pieces = normalized.split(
                 QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
             tokens.reserve(pieces.size());
@@ -53,6 +61,8 @@ QVector<QString> TextAnalyzer::tokenize(const QString &text, const Options &opti
         }
         return tokens;
     }
+
+    // Убираем лишние пробелы
     normalized.replace(QRegularExpression(QStringLiteral("\\s+")),
                        QStringLiteral(" "));
 
@@ -63,6 +73,7 @@ QVector<QString> TextAnalyzer::tokenize(const QString &text, const Options &opti
 
     for (uint rawCodePoint : codePoints) {
         const char32_t codePoint = static_cast<char32_t>(rawCodePoint);
+
         if (options.ignorePunctuation && isUnicodePunctuation(codePoint))
             continue;
 
@@ -81,16 +92,20 @@ QVector<QString> TextAnalyzer::tokenize(const QString &text, const Options &opti
     return tokens;
 }
 
+// Создаёт N-граммы и считает, сколько раз каждая встретилась
 TextAnalyzer::FrequencyMap TextAnalyzer::buildNgrams(const QVector<QString> &tokens,
-                                                       const Options &options)
+                                                     const Options &options)
 {
     FrequencyMap frequencies;
+
+    // Проверяем, хватает ли элементов для построения N-грамм
     if (options.n <= 0 || tokens.size() < options.n)
         return frequencies;
 
     const qsizetype lastStart = tokens.size() - options.n;
     for (qsizetype start = 0; start <= lastStart; ++start) {
         QString gram;
+
         if (options.mode == GramMode::Words) {
             for (int offset = 0; offset < options.n; ++offset) {
                 if (offset > 0)
@@ -101,12 +116,14 @@ TextAnalyzer::FrequencyMap TextAnalyzer::buildNgrams(const QVector<QString> &tok
             for (int offset = 0; offset < options.n; ++offset)
                 gram.append(tokens.at(start + offset));
         }
+
         ++frequencies[gram];
     }
 
     return frequencies;
 }
 
+// Считает общее количество N-грамм с учётом повторений
 int TextAnalyzer::sumFrequencies(const FrequencyMap &frequencies)
 {
     int total = 0;
@@ -115,6 +132,7 @@ int TextAnalyzer::sumFrequencies(const FrequencyMap &frequencies)
     return total;
 }
 
+// Подготавливает N-грамму для вывода в таблицу
 QString TextAnalyzer::gramToDisplay(const QString &encodedGram, GramMode mode)
 {
     if (mode == GramMode::Words) {
@@ -123,19 +141,20 @@ QString TextAnalyzer::gramToDisplay(const QString &encodedGram, GramMode mode)
         return display;
     }
 
-    // Make spaces inside character N-grams visible in the result table.
     QString display = encodedGram;
     display.replace(QLatin1Char(' '), QStringLiteral("␠"));
     display.replace(QLatin1Char('\t'), QStringLiteral("⇥"));
     return display;
 }
 
+// Сравнивает два текста и возвращает результаты анализа
 AnalysisResult TextAnalyzer::compare(const QString &textA,
                                      const QString &textB,
                                      const Options &options)
 {
     AnalysisResult result;
 
+    // Проверяем настройки и введённые тексты
     if (options.n < 1 || options.n > 10) {
         result.error = QStringLiteral("Размер N должен находиться в диапазоне от 1 до 10.");
         return result;
@@ -149,6 +168,7 @@ AnalysisResult TextAnalyzer::compare(const QString &textA,
         return result;
     }
 
+    // Подготавливаем тексты и строим N-граммы
     const QVector<QString> tokensA = tokenize(textA, options);
     const QVector<QString> tokensB = tokenize(textB, options);
     const FrequencyMap gramsA = buildNgrams(tokensA, options);
@@ -156,17 +176,18 @@ AnalysisResult TextAnalyzer::compare(const QString &textA,
 
     if (gramsA.isEmpty()) {
         result.error = QStringLiteral(
-            "В первом тексте недостаточно элементов для N-грамм размера %1. Уменьшите N или добавьте текст.")
+                           "В первом тексте недостаточно элементов для N-грамм размера %1. Уменьшите N или добавьте текст.")
                            .arg(options.n);
         return result;
     }
     if (gramsB.isEmpty()) {
         result.error = QStringLiteral(
-            "Во втором тексте недостаточно элементов для N-грамм размера %1. Уменьшите N или добавьте текст.")
+                           "Во втором тексте недостаточно элементов для N-грамм размера %1. Уменьшите N или добавьте текст.")
                            .arg(options.n);
         return result;
     }
 
+    // Сохраняем статистику по обоим текстам
     result.totalNgramsA = sumFrequencies(gramsA);
     result.totalNgramsB = sumFrequencies(gramsB);
     result.uniqueNgramsA = gramsA.size();
@@ -176,6 +197,7 @@ AnalysisResult TextAnalyzer::compare(const QString &textA,
     double squaredNormA = 0.0;
     double squaredNormB = 0.0;
 
+    // Находим общие N-граммы и рассчитываем часть формулы косинусного сходства
     for (auto it = gramsA.cbegin(); it != gramsA.cend(); ++it) {
         const double countA = it.value();
         squaredNormA += countA * countA;
@@ -191,20 +213,24 @@ AnalysisResult TextAnalyzer::compare(const QString &textA,
         }
     }
 
+    // Считаем длину вектора частот второго текста
     for (auto it = gramsB.cbegin(); it != gramsB.cend(); ++it) {
         const double countB = it.value();
         squaredNormB += countB * countB;
     }
 
+    // Коэффициент Жаккара: доля общих N-грамм среди всех уникальных
     const int unionSize = result.uniqueNgramsA + result.uniqueNgramsB
                           - result.commonUniqueNgrams;
     result.jaccard = unionSize > 0
                          ? static_cast<double>(result.commonUniqueNgrams) / unionSize
                          : 0.0;
 
+    // Косинусное сходство учитывает частоту N-грамм в текстах
     const double normProduct = std::sqrt(squaredNormA * squaredNormB);
     result.cosine = normProduct > 0.0 ? dotProduct / normProduct : 0.0;
 
+    // Сначала выводим наиболее часто встречающиеся общие N-граммы
     std::sort(result.commonGrams.begin(), result.commonGrams.end(),
               [](const CommonGram &left, const CommonGram &right) {
                   const int leftCombined = left.countA + left.countB;

@@ -1,181 +1,195 @@
-#include "similarity_engine.h"
+#include "similarity_engine.h" // Подключаем описание класса и его структур
 
-#include <QChar>
-#include <QtGlobal>
+// Работа с символами Unicode
+#include <QChar>      // Проверка символов и работа с их категориями
+#include <QtGlobal>   // Общие типы и определения Qt
 
-#include <algorithm>
-#include <cmath>
+// Стандартные библиотеки C++
+#include <algorithm>  // std::min, std::sort, std::clamp
+#include <cmath>      // std::sqrt — вычисление квадратного корня
 
-namespace {
+    namespace {
 
-using FrequencyMap = QMap<QString, int>;
+    // Хранит N-граммы и количество их повторений.
+    using FrequencyMap = QMap<QString, int>;
 
-void appendCodePoint(QString &target, uint codePoint)
-{
-    if (codePoint <= 0xFFFFU) {
-        target.append(QChar(static_cast<ushort>(codePoint)));
-        return;
-    }
-
-    const uint adjusted = codePoint - 0x10000U;
-    const ushort high = static_cast<ushort>(0xD800U + (adjusted >> 10U));
-    const ushort low = static_cast<ushort>(0xDC00U + (adjusted & 0x3FFU));
-    target.append(QChar(high));
-    target.append(QChar(low));
-}
-
-bool isCombiningMark(uint codePoint)
-{
-    const QChar::Category category = QChar::category(static_cast<char32_t>(codePoint));
-    return category == QChar::Mark_NonSpacing
-        || category == QChar::Mark_SpacingCombining
-        || category == QChar::Mark_Enclosing;
-}
-
-QVector<QString> tokenizeWords(const QString &text, bool caseInsensitive)
-{
-    const QString normalized = caseInsensitive ? text.toCaseFolded() : text;
-    const QList<uint> codePoints = normalized.toUcs4();
-
-    QVector<QString> words;
-    words.reserve(codePoints.size() / 5 + 1);
-    QString current;
-
-    for (uint codePoint : codePoints) {
-        const bool letterOrNumber = QChar::isLetterOrNumber(static_cast<char32_t>(codePoint));
-        const bool mark = !current.isEmpty() && isCombiningMark(codePoint);
-
-        if (letterOrNumber || mark) {
-            appendCodePoint(current, codePoint);
-        } else if (!current.isEmpty()) {
-            words.push_back(current);
-            current.clear();
+    // Добавляет символ Unicode в строку с учётом его кодировки.
+    void appendCodePoint(QString &target, uint codePoint)
+    {
+        if (codePoint <= 0xFFFFU) {
+            target.append(QChar(static_cast<ushort>(codePoint)));
+            return;
         }
+
+        const uint adjusted = codePoint - 0x10000U;
+        const ushort high = static_cast<ushort>(0xD800U + (adjusted >> 10U));
+        const ushort low = static_cast<ushort>(0xDC00U + (adjusted & 0x3FFU));
+        target.append(QChar(high));
+        target.append(QChar(low));
     }
 
-    if (!current.isEmpty()) {
-        words.push_back(current);
+    // Проверяет, относится ли символ к комбинируемым знакам Unicode.
+    bool isCombiningMark(uint codePoint)
+    {
+        const QChar::Category category = QChar::category(static_cast<char32_t>(codePoint));
+        return category == QChar::Mark_NonSpacing
+               || category == QChar::Mark_SpacingCombining
+               || category == QChar::Mark_Enclosing;
     }
 
-    return words;
-}
+    // Разбивает текст на слова, при необходимости не учитывая регистр.
+    QVector<QString> tokenizeWords(const QString &text, bool caseInsensitive)
+    {
+        const QString normalized = caseInsensitive ? text.toCaseFolded() : text;
+        const QList<uint> codePoints = normalized.toUcs4();
 
-QVector<uint> normalizeCharacters(const QString &text,
-                                  const SimilarityEngine::Options &options)
-{
-    const QString normalized = options.caseInsensitive ? text.toCaseFolded() : text;
-    const QList<uint> codePoints = normalized.toUcs4();
+        QVector<QString> words;
+        words.reserve(codePoints.size() / 5 + 1);
+        QString current;
 
-    QVector<uint> characters;
-    characters.reserve(codePoints.size());
+        for (uint codePoint : codePoints) {
+            const bool letterOrNumber = QChar::isLetterOrNumber(static_cast<char32_t>(codePoint));
+            const bool mark = !current.isEmpty() && isCombiningMark(codePoint);
 
-    for (uint codePoint : codePoints) {
-        if (options.ignoreWhitespace && QChar::isSpace(static_cast<char32_t>(codePoint))) {
-            continue;
-        }
-        if (options.ignorePunctuation && QChar::isPunct(static_cast<char32_t>(codePoint))) {
-            continue;
-        }
-        characters.push_back(codePoint);
-    }
-
-    return characters;
-}
-
-FrequencyMap makeWordNGrams(const QVector<QString> &words, int n)
-{
-    FrequencyMap frequencies;
-    if (words.size() < n) {
-        return frequencies;
-    }
-
-    const QChar separator(static_cast<char16_t>(0x001F));
-    for (qsizetype i = 0; i <= words.size() - n; ++i) {
-        QString gram;
-        for (int j = 0; j < n; ++j) {
-            if (j > 0) {
-                gram.append(separator);
+            if (letterOrNumber || mark) {
+                appendCodePoint(current, codePoint);
+            } else if (!current.isEmpty()) {
+                words.push_back(current);
+                current.clear();
             }
-            gram.append(words.at(i + j));
         }
-        ++frequencies[gram];
-    }
-    return frequencies;
-}
 
-FrequencyMap makeCharacterNGrams(const QVector<uint> &characters, int n)
-{
-    FrequencyMap frequencies;
-    if (characters.size() < n) {
+        if (!current.isEmpty()) {
+            words.push_back(current);
+        }
+
+        return words;
+    }
+
+    // Подготавливает символы к сравнению с учётом выбранных настроек.
+    QVector<uint> normalizeCharacters(const QString &text,
+                                      const SimilarityEngine::Options &options)
+    {
+        const QString normalized = options.caseInsensitive ? text.toCaseFolded() : text;
+        const QList<uint> codePoints = normalized.toUcs4();
+
+        QVector<uint> characters;
+        characters.reserve(codePoints.size());
+
+        for (uint codePoint : codePoints) {
+            if (options.ignoreWhitespace && QChar::isSpace(static_cast<char32_t>(codePoint))) {
+                continue;
+            }
+            if (options.ignorePunctuation && QChar::isPunct(static_cast<char32_t>(codePoint))) {
+                continue;
+            }
+            characters.push_back(codePoint);
+        }
+
+        return characters;
+    }
+
+    // Создаёт словесные N-граммы и считает их повторения.
+    FrequencyMap makeWordNGrams(const QVector<QString> &words, int n)
+    {
+        FrequencyMap frequencies;
+        if (words.size() < n) {
+            return frequencies;
+        }
+
+        const QChar separator(static_cast<char16_t>(0x001F));
+        for (qsizetype i = 0; i <= words.size() - n; ++i) {
+            QString gram;
+            for (int j = 0; j < n; ++j) {
+                if (j > 0) {
+                    gram.append(separator);
+                }
+                gram.append(words.at(i + j));
+            }
+            ++frequencies[gram];
+        }
         return frequencies;
     }
 
-    for (qsizetype i = 0; i <= characters.size() - n; ++i) {
-        QString gram;
-        for (int j = 0; j < n; ++j) {
-            appendCodePoint(gram, characters.at(i + j));
+    // Создаёт N-граммы из последовательностей символов.
+    FrequencyMap makeCharacterNGrams(const QVector<uint> &characters, int n)
+    {
+        FrequencyMap frequencies;
+        if (characters.size() < n) {
+            return frequencies;
         }
-        ++frequencies[gram];
-    }
-    return frequencies;
-}
 
-qsizetype totalOccurrences(const FrequencyMap &frequencies)
-{
-    qsizetype total = 0;
-    for (auto it = frequencies.cbegin(); it != frequencies.cend(); ++it) {
-        total += it.value();
-    }
-    return total;
-}
-
-double jaccardSimilarity(const FrequencyMap &a,
-                         const FrequencyMap &b,
-                         qsizetype sharedUniqueCount)
-{
-    const qsizetype unionCount = a.size() + b.size() - sharedUniqueCount;
-    if (unionCount <= 0) {
-        return 0.0;
-    }
-    return static_cast<double>(sharedUniqueCount) / static_cast<double>(unionCount);
-}
-
-double cosineSimilarity(const FrequencyMap &a, const FrequencyMap &b)
-{
-    double dotProduct = 0.0;
-    double normA = 0.0;
-    double normB = 0.0;
-
-    for (auto it = a.cbegin(); it != a.cend(); ++it) {
-        const double count = static_cast<double>(it.value());
-        normA += count * count;
-        const auto other = b.constFind(it.key());
-        if (other != b.cend()) {
-            dotProduct += count * static_cast<double>(other.value());
+        for (qsizetype i = 0; i <= characters.size() - n; ++i) {
+            QString gram;
+            for (int j = 0; j < n; ++j) {
+                appendCodePoint(gram, characters.at(i + j));
+            }
+            ++frequencies[gram];
         }
+        return frequencies;
     }
 
-    for (auto it = b.cbegin(); it != b.cend(); ++it) {
-        const double count = static_cast<double>(it.value());
-        normB += count * count;
+    // Считает общее число N-грамм, включая повторения.
+    qsizetype totalOccurrences(const FrequencyMap &frequencies)
+    {
+        qsizetype total = 0;
+        for (auto it = frequencies.cbegin(); it != frequencies.cend(); ++it) {
+            total += it.value();
+        }
+        return total;
     }
 
-    if (normA <= 0.0 || normB <= 0.0) {
-        return 0.0;
+    // Рассчитывает коэффициент Жаккара по количеству уникальных N-грамм.
+    double jaccardSimilarity(const FrequencyMap &a,
+                             const FrequencyMap &b,
+                             qsizetype sharedUniqueCount)
+    {
+        const qsizetype unionCount = a.size() + b.size() - sharedUniqueCount;
+        if (unionCount <= 0) {
+            return 0.0;
+        }
+        return static_cast<double>(sharedUniqueCount) / static_cast<double>(unionCount);
     }
 
-    const double score = dotProduct / (std::sqrt(normA) * std::sqrt(normB));
-    return std::clamp(score, 0.0, 1.0);
-}
+    // Рассчитывает косинусное сходство с учётом частоты N-грамм.
+    double cosineSimilarity(const FrequencyMap &a, const FrequencyMap &b)
+    {
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+
+        for (auto it = a.cbegin(); it != a.cend(); ++it) {
+            const double count = static_cast<double>(it.value());
+            normA += count * count;
+            const auto other = b.constFind(it.key());
+            if (other != b.cend()) {
+                dotProduct += count * static_cast<double>(other.value());
+            }
+        }
+
+        for (auto it = b.cbegin(); it != b.cend(); ++it) {
+            const double count = static_cast<double>(it.value());
+            normB += count * count;
+        }
+
+        if (normA <= 0.0 || normB <= 0.0) {
+            return 0.0;
+        }
+
+        const double score = dotProduct / (std::sqrt(normA) * std::sqrt(normB));
+        return std::clamp(score, 0.0, 1.0);
+    }
 
 } // namespace
 
+// Проверяет тексты, строит N-граммы и рассчитывает сходство.
 SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
-                                                     const QString &textB,
-                                                     const Options &options)
+                                                   const QString &textB,
+                                                   const Options &options)
 {
     Result result;
 
+    // Проверяем входные данные и параметры.
     if (textA.trimmed().isEmpty()) {
         result.errorMessage = QStringLiteral("Первый текст пуст. Вставьте текст или загрузите файл.");
         return result;
@@ -202,6 +216,7 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
     qsizetype availableA = 0;
     qsizetype availableB = 0;
 
+    // Строим N-граммы в зависимости от выбранного режима.
     if (options.mode == NGramMode::Words) {
         const QVector<QString> wordsA = tokenizeWords(textA, options.caseInsensitive);
         const QVector<QString> wordsB = tokenizeWords(textB, options.caseInsensitive);
@@ -210,8 +225,8 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
 
         if (availableA < options.n || availableB < options.n) {
             result.errorMessage = QStringLiteral(
-                "Недостаточно слов для выбранного N=%1. После обработки найдено: в тексте A — %2, в тексте B — %3. "
-                "Уменьшите N или используйте более длинные тексты.")
+                                      "Недостаточно слов для выбранного N=%1. После обработки найдено: в тексте A — %2, в тексте B — %3. "
+                                      "Уменьшите N или используйте более длинные тексты.")
                                       .arg(options.n)
                                       .arg(availableA)
                                       .arg(availableB);
@@ -228,8 +243,8 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
 
         if (availableA < options.n || availableB < options.n) {
             result.errorMessage = QStringLiteral(
-                "Недостаточно символов для выбранного N=%1. После обработки найдено: в тексте A — %2, в тексте B — %3. "
-                "Измените параметры обработки или используйте более длинные тексты.")
+                                      "Недостаточно символов для выбранного N=%1. После обработки найдено: в тексте A — %2, в тексте B — %3. "
+                                      "Измените параметры обработки или используйте более длинные тексты.")
                                       .arg(options.n)
                                       .arg(availableA)
                                       .arg(availableB);
@@ -240,11 +255,13 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
         frequenciesB = makeCharacterNGrams(charactersB, options.n);
     }
 
+    // Сохраняем статистику по обоим текстам.
     result.totalNGramsA = totalOccurrences(frequenciesA);
     result.totalNGramsB = totalOccurrences(frequenciesB);
     result.uniqueNGramsA = frequenciesA.size();
     result.uniqueNGramsB = frequenciesB.size();
 
+    // Находим N-граммы, которые встречаются в обоих текстах.
     for (auto it = frequenciesA.cbegin(); it != frequenciesA.cend(); ++it) {
         const auto other = frequenciesB.constFind(it.key());
         if (other == frequenciesB.cend()) {
@@ -261,6 +278,7 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
 
     result.sharedUniqueNGrams = result.commonNGrams.size();
 
+    // Вычисляем итоговый показатель выбранным методом.
     if (options.metric == SimilarityMetric::Jaccard) {
         result.similarity = jaccardSimilarity(frequenciesA, frequenciesB,
                                               result.sharedUniqueNGrams);
@@ -268,6 +286,7 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
         result.similarity = cosineSimilarity(frequenciesA, frequenciesB);
     }
 
+    // Сначала выводим совпадения с большей частотой.
     std::sort(result.commonNGrams.begin(), result.commonNGrams.end(),
               [](const SharedNGram &left, const SharedNGram &right) {
                   if (left.sharedCount != right.sharedCount) {
@@ -285,6 +304,7 @@ SimilarityEngine::Result SimilarityEngine::compare(const QString &textA,
     return result;
 }
 
+// Подготавливает N-грамму для отображения в таблице.
 QString SimilarityEngine::displayNGram(const QString &value, NGramMode mode)
 {
     QString display = value;
@@ -293,9 +313,10 @@ QString SimilarityEngine::displayNGram(const QString &value, NGramMode mode)
         return display;
     }
 
+    // Показываем пробелы и управляющие символы явно.
     display.replace(QStringLiteral("\n"), QStringLiteral("\\n"));
     display.replace(QStringLiteral("\r"), QStringLiteral("\\r"));
     display.replace(QStringLiteral("\t"), QStringLiteral("\\t"));
-    display.replace(QLatin1Char(' '), QChar(static_cast<char16_t>(0x2420))); // Visible space: ␠
+    display.replace(QLatin1Char(' '), QChar(static_cast<char16_t>(0x2420))); // Видимый пробел: ␠
     return display;
 }

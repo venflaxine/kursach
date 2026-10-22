@@ -1,57 +1,65 @@
-#include "main_window.h"
+#include "main_window.h" // Заголовочный файл главного окна программы
 
-#include <QAbstractItemView>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QDateTime>
-#include <QFile>
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QGroupBox>
-#include <QHeaderView>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QMessageBox>
-#include <QProgressBar>
-#include <QPushButton>
-#include <QScrollArea>
-#include <QSpinBox>
-#include <QSplitter>
-#include <QStatusBar>
-#include <QTableWidget>
-#include <QTableWidgetItem>
-#include <QTextEdit>
-#include <QTextStream>
-#include <QStringConverter>
-#include <QVBoxLayout>
-#include <QWidget>
+// Элементы интерфейса и их настройка
+#include <QAbstractItemView>  // Настройка поведения таблицы
+#include <QCheckBox>          // Флажки для выбора параметров
+#include <QComboBox>          // Выпадающие списки
+#include <QGroupBox>          // Группировка элементов в рамки
+#include <QHeaderView>        // Настройка заголовков таблицы
+#include <QLabel>             // Текстовые надписи
+#include <QProgressBar>       // Полоса прогресса для отображения сходства
+#include <QPushButton>        // Кнопки
+#include <QScrollArea>        // Область с прокруткой
+#include <QSpinBox>           // Поле для ввода целого числа
+#include <QSplitter>          // Разделитель между областями интерфейса
+#include <QStatusBar>          // Строка состояния внизу окна
+#include <QTableWidget>       // Таблица результатов
+#include <QTableWidgetItem>   // Отдельные ячейки таблицы
+#include <QTextEdit>          // Поля для ввода текстов
+#include <QWidget>            // Базовый класс элементов интерфейса
 
+// Компоновка элементов интерфейса
+#include <QHBoxLayout>        // Расположение элементов по горизонтали
+#include <QVBoxLayout>        // Расположение элементов по вертикали
+
+// Работа с файлами и диалоговыми окнами
+#include <QFile>              // Чтение и запись файлов
+#include <QFileDialog>        // Окна выбора файла и сохранения отчёта
+#include <QFileInfo>          // Получение информации о файле, например его размера
+#include <QTextStream>        // Запись текста в файл
+#include <QStringConverter>   // Настройка кодировки при записи файла
+
+// Сообщения, дата и время
+#include <QMessageBox>        // Предупреждения и сообщения пользователю
+#include <QDateTime>           // Получение текущей даты и времени
 #include <algorithm>
 
-namespace {
-constexpr qint64 MaxTextFileBytes = 2 * 1024 * 1024;
-constexpr int MaxDisplayedCommonNGrams = 100;
+    namespace {
+    constexpr qint64 MaxTextFileBytes = 2 * 1024 * 1024;
+    constexpr int MaxDisplayedCommonNGrams = 100;
 
-QLabel *makeSectionTitle(const QString &text)
-{
-    auto *label = new QLabel(text);
-    label->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: 600;"));
-    return label;
-}
+    // Заголовок для отдельных блоков интерфейса.
+    QLabel *makeSectionTitle(const QString &text)
+    {
+        auto *label = new QLabel(text);
+        label->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: 600;"));
+        return label;
+    }
 
-QString nGramModeName(SimilarityEngine::NGramMode mode)
-{
-    return mode == SimilarityEngine::NGramMode::Words
-        ? QStringLiteral("словесные N-граммы")
-        : QStringLiteral("символьные N-граммы");
-}
+    // Названия режимов и метрик для вывода в интерфейсе.
+    QString nGramModeName(SimilarityEngine::NGramMode mode)
+    {
+        return mode == SimilarityEngine::NGramMode::Words
+                   ? QStringLiteral("словесные N-граммы")
+                   : QStringLiteral("символьные N-граммы");
+    }
 
-QString metricName(SimilarityEngine::SimilarityMetric metric)
-{
-    return metric == SimilarityEngine::SimilarityMetric::Jaccard
-        ? QStringLiteral("коэффициент Жаккара")
-        : QStringLiteral("косинусное сходство");
-}
+    QString metricName(SimilarityEngine::SimilarityMetric metric)
+    {
+        return metric == SimilarityEngine::SimilarityMetric::Jaccard
+                   ? QStringLiteral("коэффициент Жаккара")
+                   : QStringLiteral("косинусное сходство");
+    }
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -63,6 +71,7 @@ MainWindow::MainWindow(QWidget *parent)
     setMinimumSize(900, 650);
 }
 
+// Создание интерфейса и подключение кнопок.
 void MainWindow::buildUi()
 {
     auto *central = new QWidget(this);
@@ -79,6 +88,7 @@ void MainWindow::buildUi()
     rootLayout->addWidget(title);
     rootLayout->addWidget(subtitle);
 
+    // Поля для двух сравниваемых текстов.
     auto *textsSplitter = new QSplitter(Qt::Horizontal, central);
     auto *groupA = new QGroupBox(QStringLiteral("Текст A"), textsSplitter);
     auto *layoutA = new QVBoxLayout(groupA);
@@ -108,6 +118,7 @@ void MainWindow::buildUi()
     textsSplitter->setStretchFactor(1, 1);
     rootLayout->addWidget(textsSplitter, 3);
 
+    // Настройки сравнения.
     auto *settingsGroup = new QGroupBox(QStringLiteral("Параметры анализа"), central);
     auto *settingsLayout = new QVBoxLayout(settingsGroup);
     auto *settingsRow = new QHBoxLayout();
@@ -171,6 +182,7 @@ void MainWindow::buildUi()
     buttonsRow->addWidget(saveReportButton_);
     rootLayout->addLayout(buttonsRow);
 
+    // Область с результатами анализа.
     auto *resultsGroup = new QGroupBox(QStringLiteral("Результаты"), central);
     auto *resultsLayout = new QVBoxLayout(resultsGroup);
     auto *scoreRow = new QHBoxLayout();
@@ -215,6 +227,7 @@ void MainWindow::buildUi()
 
     setCentralWidget(central);
 
+    // Связываем кнопки с обработчиками.
     connect(loadAButton, &QPushButton::clicked, this, &MainWindow::loadTextA);
     connect(loadBButton, &QPushButton::clicked, this, &MainWindow::loadTextB);
     connect(compareButton_, &QPushButton::clicked, this, &MainWindow::compareTexts);
@@ -223,6 +236,7 @@ void MainWindow::buildUi()
     connect(saveReportButton_, &QPushButton::clicked, this, &MainWindow::saveReport);
 }
 
+// Собирает текущие значения настроек из интерфейса.
 SimilarityEngine::Options MainWindow::currentOptions() const
 {
     SimilarityEngine::Options options;
@@ -242,6 +256,7 @@ void MainWindow::compareTexts()
 
     const auto options = currentOptions();
     const auto result = SimilarityEngine::compare(textA_->toPlainText(), textB_->toPlainText(), options);
+
     if (!result.success) {
         hasResult_ = false;
         saveReportButton_->setEnabled(false);
@@ -252,6 +267,7 @@ void MainWindow::compareTexts()
         return;
     }
 
+    // Сохраняем последний успешный результат для отчёта.
     lastResult_ = result;
     lastOptions_ = options;
     hasResult_ = true;
@@ -271,6 +287,7 @@ void MainWindow::loadTextB()
     loadTextFile(textB_, QStringLiteral("Выберите файл для текста B"));
 }
 
+// Загрузка файла с проверкой размера, чтения и кодировки.
 void MainWindow::loadTextFile(QTextEdit *target, const QString &caption)
 {
     const QString path = QFileDialog::getOpenFileName(
@@ -310,7 +327,7 @@ void MainWindow::loadTextFile(QTextEdit *target, const QString &caption)
         return;
     }
     if (!decoded.isEmpty() && decoded.front() == QChar(static_cast<char16_t>(0xFEFF))) {
-        decoded.remove(0, 1); // Strip a UTF-8 byte-order mark, if present.
+        decoded.remove(0, 1); // Убираем BOM в начале файла, если он есть.
     }
     if (decoded.size() > SimilarityEngine::MaxTextLength) {
         QMessageBox::warning(this, QStringLiteral("Текст слишком большой"),
@@ -347,6 +364,7 @@ void MainWindow::swapTexts()
     statusBar()->showMessage(QStringLiteral("Тексты поменяны местами."), 3000);
 }
 
+// Возвращает область результатов в исходное состояние.
 void MainWindow::clearResultView()
 {
     scoreLabel_->setText(QStringLiteral("— %"));
@@ -378,9 +396,9 @@ void MainWindow::showResult(const SimilarityEngine::Result &result,
     interpretationLabel_->setText(similarityInterpretation(result.similarity));
     similarityBar_->setValue(qRound(result.similarity * 1000.0));
     statisticsLabel_->setText(QStringLiteral(
-        "Текст A: N-грамм — %1, уникальных — %2.  "
-        "Текст B: N-грамм — %3, уникальных — %4.\n"
-        "Общих уникальных N-грамм — %5.  Метод: %6; тип: %7; N = %8.")
+                                  "Текст A: N-грамм — %1, уникальных — %2.  "
+                                  "Текст B: N-грамм — %3, уникальных — %4.\n"
+                                  "Общих уникальных N-грамм — %5.  Метод: %6; тип: %7; N = %8.")
                                   .arg(result.totalNGramsA)
                                   .arg(result.uniqueNGramsA)
                                   .arg(result.totalNGramsB)
@@ -389,6 +407,7 @@ void MainWindow::showResult(const SimilarityEngine::Result &result,
                                   .arg(metricName(options.metric), nGramModeName(options.mode))
                                   .arg(options.n));
 
+    // Заполняем таблицу общих N-грамм.
     const int rows = static_cast<int>(std::min<qsizetype>(result.commonNGrams.size(), MaxDisplayedCommonNGrams));
     commonNGramsTable_->setRowCount(rows);
     for (int row = 0; row < rows; ++row) {
@@ -410,6 +429,7 @@ void MainWindow::showResult(const SimilarityEngine::Result &result,
     }
 }
 
+// Сохраняет результат последнего сравнения в текстовый файл.
 void MainWindow::saveReport()
 {
     if (!hasResult_) {
