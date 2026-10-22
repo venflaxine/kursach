@@ -12,7 +12,6 @@ using FrequencyMap = QMap<QString, int>;
 
 void appendCodePoint(QString &target, uint codePoint)
 {
-    // QString uses UTF-16. Build surrogate pairs explicitly for supplementary Unicode.
     if (codePoint <= 0xFFFFU) {
         target.append(QChar(static_cast<ushort>(codePoint)));
         return;

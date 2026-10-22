@@ -1,13 +1,20 @@
-# Build directories
-/build/
+# Qt Creator / CMake build output
+build/
+build-*/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-CTestTestfile.cmake
 Makefile
+CTestTestfile.cmake
+Testing/
 
-# Compiled binaries and libraries
+# Qt Creator user settings
+*.user
+*.user.*
+*.pro.user
+
+# Binaries and generated object files
 *.o
 *.obj
 *.a
@@ -18,13 +25,8 @@ Makefile
 *.exe
 *.app/
 
-# IDE / OS files
-.idea/
-.vscode/
-*.user
-*.user.*
+# Editor / OS clutter
 .DS_Store
 Thumbs.db
-
-# Local reports / generated output
-similarity_report*.txt
+.vscode/
+.idea/
