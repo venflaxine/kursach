@@ -29,15 +29,10 @@ LocalTextSimilarity/
 │   ├── main.cpp
 │   ├── MainWindow.cpp
 │   └── TextAnalyzer.cpp
-
 ├── /output
-
 │   ├── MainWindow.h
-
 │   ├── TextAnalyzer.h
-
 │   ├── main\_window.h
-
 │   ├── TextAnalyzer.h
 ├── .gitignore
 ├── CMakeLists.txt
