@@ -15,8 +15,6 @@
 * Таблица общих N-грамм и частоты в каждом документе.
 * Экспорт отчёта в TXT.
 * Проверки пустого текста, слишком короткого текста, неверного N, слишком больших текстов/файлов, ошибок файловых операций и невалидного UTF-8.
-* Автоматические тесты алгоритма на Qt Test.
-* GitHub Actions workflow для автоматической сборки и тестирования.
 
 Максимальный размер каждого входного текста — 256 КиБ в UTF-8. Это ограничение уменьшает вероятность чрезмерного расхода памяти при построении частотного словаря.
 
@@ -24,25 +22,25 @@
 
 ```text
 LocalTextSimilarity/
-├── .github/
-│   └── workflows/
-│       └── build.yml
-├── docs/
-│   └── ALGORITHM.md
 ├── examples/
-│   ├── text\_a.txt
-│   └── text\_b.txt
+│   ├── text\\\_a.txt
+│   └── text\\\_b.txt
 ├── src/
 │   ├── main.cpp
-│   ├── MainWindow.h
 │   ├── MainWindow.cpp
-│   ├── TextAnalyzer.h
 │   └── TextAnalyzer.cpp
-├── tests/
-│   └── test\_textanalyzer.cpp
+
+├── /output
+
+│   ├── MainWindow.h
+
+│   ├── TextAnalyzer.h
+
+│   ├── main\_window.h
+
+│   ├── TextAnalyzer.h
 ├── .gitignore
 ├── CMakeLists.txt
-├── LICENSE
 └── README.md
 ```
 
@@ -61,6 +59,4 @@ LocalTextSimilarity/
 6. Косинусное сходство рассчитывается по векторам частот:
 
    `cos(A, B) = (A · B) / (||A|| × ||B||)`
-
-
 
